@@ -59,7 +59,7 @@ return input.replace(/\\/(\\^?key\\$?)\\//gi, 'RegExp(\\\`$1\\\`, "i")').replace
 })
 
 test('Today function', () => {
-    expect(syntax.functions.today()).toBe(new Date().toISOString().slice(0, 10))
+    expect(syntax.functions.today()).toBe(new Date().toLocaleDateString("sv"))
 })
 
 test('Adding grammar in constructor', () => {

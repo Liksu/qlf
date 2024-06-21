@@ -1,15 +1,16 @@
-import {Syntax} from "./syntax";
+import { Syntax } from './syntax'
 import {
     qlfErrors,
     qlfFilterFn,
-    qlfLexeme,
-    qlfLexemes, qlfFullResult,
+    qlfFullResult,
+    qlfLexemes,
     qlfSettings,
+    qlfShortResult,
     qlfSyntax,
-    qlfTranspileSettings, qlfShortResult
-} from "./interfaces";
-import {QLFDictionary} from "./dictionary";
-import {Guards} from "./guards";
+    qlfTranspileSettings
+} from './interfaces'
+import { QLFDictionary } from './dictionary'
+import { Guards } from './guards'
 
 export class QLF {
     public syntax: Syntax
@@ -18,6 +19,7 @@ export class QLF {
     static defaultSettings: qlfSettings = {
         caseSensitive: false,
         strictEquality: false,
+        strictFilter: true,
         filterOnly: false,
         nodeName: 'node'
     }
@@ -36,6 +38,7 @@ export class QLF {
         const config: qlfTranspileSettings = {
             nodeName: this.settings.nodeName,
             filterOnly: this.settings.filterOnly,
+            strictFilter: this.settings.strictFilter,
             ...settings
         }
 
@@ -120,10 +123,11 @@ export class QLF {
         return query
     }
 
-    private createFilterFunction(query: string, config: qlfTranspileSettings): qlfFilterFn {
+    private createSloppyFilterFunction(query: string, config: qlfTranspileSettings): qlfFilterFn {
         const safeNodeName = Guards.headlessCommonGuard(config.nodeName)
         const [headOfNodeName] = safeNodeName.split('?')
         const functions = this.syntax.functions
+        const functionNames = Object.keys(functions)
 
         const filterFunctionBody = `if (!${headOfNodeName} || typeof ${safeNodeName} !== 'object') return;
         with (${config.nodeName}) {
@@ -132,16 +136,47 @@ export class QLF {
 
         let filterFunction
         try {
-            // @ts-ignore
-            with (functions) {
-                filterFunction = new Function(headOfNodeName, filterFunctionBody)
-            }
+            filterFunction = new Function(...functionNames, headOfNodeName, filterFunctionBody).bind(null, ...functionNames.map(name => functions[name]))
         } catch (error) {
             console.log({filterFunctionBody})
             throw Error(`${qlfErrors.Syntax}: ${error.message}`)
         }
 
         return filterFunction
+    }
+
+    private createStrictFilterFunction(query: string, config: qlfTranspileSettings): qlfFilterFn {
+        const safeNodeName = Guards.headlessCommonGuard(config.nodeName)
+        const [headOfNodeName] = safeNodeName.split('?')
+
+        const functionNames = Object.keys(this.syntax.functions)
+        const functions = functionNames.map(name => this.syntax.functions[name]).sort()
+        const cache = new Map()
+
+        return function filterFn(context: any) {
+            const node = new Function(headOfNodeName, `return ${safeNodeName}`)(context)
+            if (!node || typeof node !== 'object') return
+            const keys = Object.keys(node).sort()
+            const cacheKey = keys.join(',')
+
+            if (!cache.has(cacheKey)) {
+                try {
+                    const compareFn = new Function(...functionNames, headOfNodeName, ...keys, `return ${query}`)
+                    cache.set(cacheKey, compareFn)
+                } catch (error) {
+                    throw Error(`${qlfErrors.Syntax}: ${error.message}`)
+                }
+            }
+
+            let result
+            try {
+                result = cache.get(cacheKey)(...functions, node, ...keys.map(key => node[key]))
+            } catch (error) {
+                throw Error(`${qlfErrors.Runtime}: ${error.message}`)
+            }
+
+            return result
+        }
     }
 
     private prepareFilter(query: string, config: qlfTranspileSettings): qlfFilterFn {
@@ -161,6 +196,8 @@ export class QLF {
         // expand all parts that was stored into the dictionary
         query = this.dictionary.restore(query)
 
-        return this.createFilterFunction(query, config)
+        return config.strictFilter
+            ? this.createStrictFilterFunction(query, config)
+            : this.createSloppyFilterFunction(query, config)
     }
 }

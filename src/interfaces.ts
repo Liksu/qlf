@@ -74,6 +74,7 @@ export interface qlfFunctions {
 export interface qlfSettings {
     caseSensitive?: boolean
     strictEquality?: boolean
+    strictFilter?: boolean
     filterOnly?: boolean
     nodeName?: string
 }
@@ -85,7 +86,7 @@ export interface qlfSyntax {
     functions?: qlfFunctions
 }
 
-export interface qlfTranspileSettings extends Pick<qlfSettings, 'nodeName' | 'filterOnly'>{
+export interface qlfTranspileSettings extends Pick<qlfSettings, 'strictFilter' | 'nodeName' | 'filterOnly'>{
     cursorPosition?: number
 }
 

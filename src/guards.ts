@@ -7,7 +7,7 @@ export namespace Guards {
      * Check is variable null, number, dictionary key or quoted string
      * @param variable
      */
-    const isSafe = variable =>
+    const isSafe = (variable: string): boolean =>
         ['null', 'true', 'false', 'undefined'].includes(variable)
         || !isNaN(Number(variable)) // is number
         || QLFDictionary.isKey(variable) // is dictionary key
@@ -19,7 +19,7 @@ export namespace Guards {
      * @param value {String} - input string of dictionary key
      * @returns {String} - quoted value
      */
-    export const quote: qlfGuard = value =>
+    export const quote: qlfGuard = (value: string): string =>
         QLFDictionary.isKey(value) || /^(['"]).+\1$/.test(value) ? value : `'${value}'`
 
     /**
@@ -28,7 +28,7 @@ export namespace Guards {
      * @param value {String}
      * @returns {String}
      */
-    export const unquote: qlfGuard = value =>
+    export const unquote: qlfGuard = (value: string): string =>
         QLFDictionary.isKey(value) ? QLFDictionary.markUnquoted(value as qlfDictionaryKey) : value
 
     /**
@@ -38,7 +38,7 @@ export namespace Guards {
      * @param variable {String} - any variable that can be in scope
      * @returns {String}
      */
-    export const safeVariable: qlfGuard = variable => {
+    export const safeVariable: qlfGuard = (variable: string): string => {
         if (isSafe(variable)) return variable
         variable = variable.trim()
         return `(typeof ${variable} === 'undefined' ? '${variable}' : ${variable})`
@@ -55,7 +55,7 @@ export namespace Guards {
      * @param key {String}
      * @returns {String} - safe key
      */
-    export const commonGuard: qlfGuard = key => {
+    export const commonGuard: qlfGuard = (key: string): string => {
         if (isSafe(key)) return key
 
         let [head, ...tail] = splitChain(key)
@@ -69,7 +69,7 @@ export namespace Guards {
      * @param key {String}
      * @returns {String} - safe key
      */
-    export const headlessCommonGuard: qlfGuard = key => {
+    export const headlessCommonGuard: qlfGuard = (key: string): string => {
         return joinChain(splitChain(key))
     }
 
@@ -79,7 +79,7 @@ export namespace Guards {
      * @param arrayExpression {String}
      * @returns {String}
      */
-    export const safeArrayName: qlfGuard = arrayExpression => {
+    export const safeArrayName: qlfGuard = (arrayExpression: string): string => {
         const [arrayName] = splitChain(arrayExpression)
         return `(typeof ${arrayName} !== 'undefined' && ${arrayName} instanceof Array ? ${arrayName} : [null])`
     }
@@ -90,7 +90,7 @@ export namespace Guards {
      * @param list {String}
      * @return {String} - safe list
      */
-    export const safeList: qlfGuard = list => {
+    export const safeList: qlfGuard = (list: string): string => {
         return list
             .split(/\s*,\s*/)
             .map(commonGuard)
