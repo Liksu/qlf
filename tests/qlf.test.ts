@@ -28,6 +28,49 @@ test('Transpile deep', () => {
     expect(result.map(node => node.mark)).toStrictEqual(['example1', 'example7'])
 })
 
+test('JQL', () => {
+    const query = `project = 'jql' and status = 'in progress' and assignee = currentUser() and sprint in openSprints()`
+    const fn = new QLF({
+        strictFilter: false,
+    }, {
+        functions: {
+            currentUser: () => 'user',
+            openSprints: () => ['sprint1', 'sprint2'],
+        }
+    }).transpile(query).filter
+    console.log(fn.toString())
+    
+    const list = [
+        {project: 'jql', status: 'in progress', assignee: 'user', sprint: 'sprint1', summary: 'correct'},
+        {project: 'jql', status: 'in progress', assignee: 'user', sprint: 'sprint2', summary: 'correct'},
+        {project: 'jql', status: 'in progress', assignee: 'user', sprint: 'sprint3', summary: 'correct'},
+        {project: 'jql', status: 'in progress', assignee: 'user', sprint: 'sprint4', summary: 'correct'},
+        {project: 'jql', status: 'done', assignee: 'user', sprint: 'sprint1', summary: 'wrong'},
+        {project: 'jql', status: 'done', assignee: 'user', sprint: 'sprint2', summary: 'wrong'},
+        {project: 'jql', status: 'backlog', assignee: 'user', sprint: 'sprint1', summary: 'wrong'},
+        {project: 'jql', status: 'backlog', assignee: 'user', sprint: 'sprint2', summary: 'wrong'},
+        {project: 'jql', status: 'in progress', assignee: 'another', sprint: 'sprint1', summary: 'wrong'},
+        {project: 'jql', status: 'in progress', assignee: 'another', sprint: 'sprint2', summary: 'wrong'},
+        {project: 'jql', status: 'in progress', assignee: 'another', sprint: 'sprint3', summary: 'wrong'},
+        {project: 'jql', status: 'in progress', assignee: 'another', sprint: 'sprint4', summary: 'wrong'},
+        {project: 'jql', status: 'done', assignee: 'another', sprint: 'sprint1', summary: 'wrong'},
+        {project: 'jql', status: 'done', assignee: 'another', sprint: 'sprint2', summary: 'wrong'},
+        {project: 'jql', status: 'backlog', assignee: 'another', sprint: 'sprint1', summary: 'wrong'},
+        {project: 'jql', status: 'backlog', assignee: 'another', sprint: 'sprint2', summary: 'wrong'},
+        {project: 'another', status: 'in progress', assignee: 'user', sprint: 'sprint1', summary: 'wrong'},
+        {project: 'another', status: 'in progress', assignee: 'user', sprint: 'sprint2', summary: 'wrong'},
+        {project: 'another', status: 'in progress', assignee: 'user', sprint: 'sprint3', summary: 'wrong'},
+        {project: 'another', status: 'in progress', assignee: 'user', sprint: 'sprint4', summary: 'wrong'},
+        {project: 'another', status: 'done', assignee: 'user', sprint: 'sprint1', summary: 'wrong'},
+        {project: 'another', status: 'done', assignee: 'user', sprint: 'sprint2', summary: 'wrong'},
+        {project: 'another', status: 'backlog', assignee: 'user', sprint: 'sprint1', summary: 'wrong'},
+        {project: 'another', status: 'backlog', assignee: 'user', sprint: 'sprint2', summary: 'wrong'},
+    ]
+    
+    const result = list.filter(fn).map(node => node.summary).every(summary => summary === 'correct')
+    expect(result).toEqual(true)
+})
+
 const testData = [
     {
         a: [
