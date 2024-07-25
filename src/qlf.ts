@@ -136,7 +136,9 @@ export class QLF {
 
         let filterFunction
         try {
-            filterFunction = new Function(...functionNames, headOfNodeName, filterFunctionBody).bind(null, ...functionNames.map(name => functions[name]))
+            const fn = new Function(...functionNames, headOfNodeName, filterFunctionBody)
+            filterFunction = fn.bind(null, ...functionNames.map(name => functions[name]))
+            filterFunction.toString = () => fn.toString()
         } catch (error) {
             console.log({filterFunctionBody})
             throw Error(`${qlfErrors.Syntax}: ${error.message}`)
