@@ -2,3 +2,6 @@
 coverage/
 draft/
 node_modules/
+.claude
+tmp
+/dist/

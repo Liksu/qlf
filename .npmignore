@@ -1,0 +1,12 @@
+.idea
+.claude
+.git
+src
+tests
+tmp
+dist.tmp
+docs
+jest.config.js
+tsconfig.json
+api-extractor.json
+babel.config.js
