@@ -1,6 +1,6 @@
 {
   "name": "qlf",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Query Language based Filter",
   "main": "./dist/qlf.js",
   "module": "./dist/qlf.mjs",
@@ -21,8 +21,14 @@
   "keywords": [
     "jql",
     "query",
-    "lqnguage",
-    "filter"
+    "language",
+    "filter",
+    "search",
+    "parser",
+    "transpiler",
+    "data",
+    "array",
+    "javascript"
   ],
   "author": "Petro Borshchahivskyi",
   "license": "MIT",
@@ -33,16 +39,15 @@
   "devDependencies": {
     "@babel/core": "^7.15.0",
     "@babel/preset-env": "^7.15.0",
-    "@babel/preset-typescript": "^7.15.0",
+    "@babel/preset-typescript": "^7.15. 0",
     "@swc/core": "^1.13.5",
     "@types/jest": "^26.0.24",
+    "@types/node": "^16.4.7",
     "babel-jest": "^27.0.6",
     "jest": "^27.0.6",
     "ts-node": "^10.1.0",
     "tsup": "^8.5.0",
     "typescript": "^4.3.5"
   },
-  "dependencies": {
-    "@types/node": "^16.4.7"
-  }
+  "dependencies": {}
 }

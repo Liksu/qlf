@@ -1,7 +1,7 @@
 # QLF - Query Language Filter
 
 [![npm version](https://badge.fury.io/js/qlf.svg)](https://badge.fury.io/js/qlf)
-[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 **QLF** transforms text queries into ready-to-use filter functions for your data. Write human-readable queries like `status = "active" and role like "dev"` and get optimized JavaScript functions that work with arrays of objects. Built-in JQL-like syntax included, or create your own custom query language.
 
@@ -444,7 +444,7 @@ These features will enable building rich query editors, autocomplete, and debugg
 
 ## 📝 License
 
-ISC License - see the [LICENSE](LICENSE) file for details.
+MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🔗 Links
 
