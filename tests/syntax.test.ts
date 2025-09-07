@@ -1,11 +1,34 @@
 import {Syntax} from "../src/syntax";
+import { QLF } from '../src/qlf'
 
 const syntax = new Syntax()
 
-test('Correct lexeme compiler', () => {
-    const lexemesCompiler = syntax['getLexemesCompiler']()
-    expect(lexemesCompiler('key like value'))
-        .toBe('(?<key>[\\w.]+) like (?<value>[\\wϘλφ-]+)')
+describe('Lexemes', () => {
+    test('Correct lexeme compiler', () => {
+        const lexemesCompiler = syntax['getLexemesCompiler']()
+        expect(lexemesCompiler('key like value'))
+            .toBe('(?<key>[\\w.]+) like (?<value>[\\wϘλφ-]+)')
+    })
+
+
+    test('Adding custom synonyms', () => {
+        const eqRe = /\bequals\b/gi
+
+        // Test synonym functionality by checking if they get applied
+        const qlf = new QLF({}, {
+            synonyms: new Map([
+                [eqRe, '=='],
+                [/\bis\s+like\b/gi, 'like']
+            ])
+        })
+
+        // Check that custom synonyms were added
+        expect(qlf.syntax.synonyms.has(eqRe)).toBe(true) // custom synonym exists
+        expect(qlf.syntax.synonyms.size).toBe(7) // original + custom synonyms
+        expect(qlf['replaceSynonyms']('key equals value')).toContain('==') // custom synonym works
+        expect(qlf['replaceSynonyms']('key is like value')).not.toContain('is')
+        expect(qlf.syntax.synonyms.values().next().value).toBe('&&') // original synonym still exists
+    })
 })
 
 describe('All grammars matches itself', () => {

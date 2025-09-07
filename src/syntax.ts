@@ -135,7 +135,13 @@ export class Syntax implements qlfSyntax {
         // add grammars, lexemes or functions
         if (syntax) {
             Object.keys(syntax).forEach(key => {
-                Object.assign(this[key], syntax[key])
+                if (!this[key]) this[key] = syntax[key]
+                else if (syntax[key] instanceof Map) {
+                    let mapFn = (value: unknown, mapKey: unknown) => this[key][mapKey] = value
+                    if (this[key] instanceof Map) mapFn = (value, mapKey) => this[key].set(mapKey, value)
+                    syntax[key].forEach(mapFn)
+                }
+                else Object.assign(this[key], syntax[key])
             })
         }
 
