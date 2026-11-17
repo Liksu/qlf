@@ -3,7 +3,7 @@
  * https://jestjs.io/docs/en/configuration.html
  */
 
-export default {
+module.exports = {
     // All imported modules in your tests should be mocked automatically
     // automock: false,
 
@@ -154,9 +154,11 @@ export default {
     // ],
 
     // An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
-    // testPathIgnorePatterns: [
-    //   "\\\\node_modules\\\\"
-    // ],
+    // the old folder keeps previous versions of the library together with their tests
+    testPathIgnorePatterns: [
+        "/node_modules/",
+        "/old/",
+    ],
 
     // The regexp pattern or array of patterns that Jest uses to detect test files
     // testRegex: [],
