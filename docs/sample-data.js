@@ -27,19 +27,19 @@ export const SAMPLE_DATA = [
 ]
 
 export const EXAMPLES = [
-  'status = "In Progress" and priority in ("High", "Critical")',
-  'labels has "bug" and status not in ("Done")',
-  'labels has one of ("mobile", "infra")',
-  'labels has all of ("backend", "security")',
-  'summary ~ "login"',
+  'status = "In Progress" and priority in (High, Critical)', // quotes only where a value has a space
+  'labels has bug and status not in (Done)',
+  'labels has one of (mobile, infra)',
+  'labels has all of (backend, security)',
+  'summary ~ login',
   'points > 5 and assignee is not null',
-  'reporter.team = "core" and priority = "High"',
+  'reporter.team = core and priority = High',
   'assignee is null',
-  'created > "2026-11-01"',
+  'created > "2026-11-01"', // without quotes a date is 2026 - 11 - 1
   'summary.length > 35',
-  '!(status in ("Done", "Review"))',
+  '!(status in (Done, Review))',
   'assignee = me() and priority in urgent()',
-  'month(created) = month(today()) and priority in (urgent(), "Medium")',
+  'month(created) = month(today()) and priority in (urgent(), Medium)',
 ]
 
 // Functions that queries can call; the playground lets you edit them.
