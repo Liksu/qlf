@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>qlf playground</title>
+  <meta name="description" content="Try QLF queries in the browser: filter a dataset, or follow one item through every step of the query.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="playground.css">
+  <script type="module" src="playground.js"></script>
+</head>
+<body>
+  <header class="top">
+    <h1 class="brand">qlf <span>playground</span></h1>
+    <p class="lede">Type a query. Filter a whole dataset, or follow one item through every step.</p>
+    <nav class="links">
+      <a href="https://github.com/Liksu/qlf">GitHub</a>
+      <a href="https://www.npmjs.com/package/qlf">npm</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="query" aria-labelledby="query-label">
+      <label id="query-label" for="query" class="eyebrow">Query</label>
+      <textarea id="query" rows="2" spellcheck="false" autocomplete="off"
+        placeholder='status = "In Progress" and labels has "bug"'></textarea>
+      <p id="status" class="status" role="status" aria-live="polite">Loading qlf…</p>
+
+      <div class="row">
+        <span class="eyebrow">Try</span>
+        <ul id="examples" class="examples" aria-label="Example queries"></ul>
+      </div>
+
+      <fieldset class="row settings">
+        <legend class="eyebrow">Settings</legend>
+        <label class="toggle"><input type="checkbox" id="caseSensitive"> <code>caseSensitive</code> <small>case matters in like / contains</small></label>
+        <label class="toggle"><input type="checkbox" id="strictEquality"> <code>strictEquality</code> <small>=== instead of ==</small></label>
+        <label class="toggle"><input type="checkbox" id="strictFilter" checked> <code>strictFilter</code> <small>cached functions, no <code>with</code></small></label>
+        <label class="toggle text"><code>nodeName</code> <input type="text" id="nodeName" value="node" spellcheck="false" autocomplete="off"> <small>path to the item in what the filter gets, like <code>row.data</code></small></label>
+      </fieldset>
+
+      <details class="functions" id="functions">
+        <summary><span class="eyebrow">Functions</span> <code id="functions-names" class="muted"></code></summary>
+        <p class="muted">An object of functions that queries can call, on both tabs. <code>today()</code> is built in.</p>
+        <textarea id="functions-input" rows="6" spellcheck="false" aria-label="Functions"></textarea>
+        <p id="functions-check" class="status" role="status" aria-live="polite"></p>
+      </details>
+    </section>
+
+    <section class="workspace">
+      <div class="tabs" role="tablist" aria-label="View">
+        <button type="button" role="tab" id="tab-data" aria-controls="panel-data" aria-selected="true">
+          Data <small>the query on every row</small>
+        </button>
+        <button type="button" role="tab" id="tab-item" aria-controls="panel-item" aria-selected="false" tabindex="-1">
+          One item <small>the query step by step</small>
+        </button>
+      </div>
+
+      <div id="panel-data" class="results" role="tabpanel" aria-labelledby="tab-data">
+        <div class="results-head">
+          <button type="button" id="open-data" class="button">Set your data</button>
+          <h2 id="results-title">Data</h2>
+          <span id="data-source" class="muted"></span>
+          <span id="count" class="count"></span>
+          <label class="toggle only">
+            <input type="checkbox" id="only-matches"> Show only matches
+          </label>
+        </div>
+        <div class="table-wrap" tabindex="0" aria-label="Data rows, matches highlighted">
+          <table id="table"></table>
+        </div>
+      </div>
+
+      <div id="panel-item" class="sandbox" role="tabpanel" aria-labelledby="tab-item" hidden>
+        <div class="sandbox-item">
+          <div class="field-head">
+            <label for="item-input" class="eyebrow">Item</label>
+            <select id="item-pick" aria-label="Take a row from the data">
+              <option value="">Take a row from the data…</option>
+            </select>
+          </div>
+          <textarea id="item-input" rows="18" spellcheck="false"></textarea>
+          <p id="item-check" class="status" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="sandbox-trace">
+          <div id="verdict" class="verdict" aria-live="polite"></div>
+
+          <div class="trace-tools">
+            <label class="toggle"><input type="checkbox" id="show-function"> Show the filter function</label>
+            <label class="toggle"><input type="checkbox" id="hide-guards"> Hide guards</label>
+          </div>
+
+          <div id="function-view" class="function-view" hidden>
+            <h2>Filter function</h2>
+            <p class="muted">What qlf created with <code>new Function</code> and how it was called for this item.</p>
+            <ol id="call-list" class="call-list"></ol>
+          </div>
+
+          <h2>Grammars</h2>
+          <p class="muted">Parts of the query that grammars turned into code, and what each part gives for this item.</p>
+          <ol id="grammar-list" class="grammar-list"></ol>
+
+          <h2>Steps</h2>
+          <p class="muted">The query after each step of the transpiler. Chips are values kept in the dictionary: hover one to see it.</p>
+          <ol id="step-list" class="step-list"></ol>
+
+          <h2>Dictionary</h2>
+          <div class="table-wrap">
+            <table id="dictionary" class="dictionary"></table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="data-dialog" aria-labelledby="dialog-title">
+    <form method="dialog" class="dialog">
+      <h2 id="dialog-title">Set your data</h2>
+      <p class="muted">Paste a JSON array of objects, or JSON Lines: one object per line.</p>
+      <label for="data-input" class="eyebrow">Data</label>
+      <textarea id="data-input" rows="16" spellcheck="false"
+        placeholder='[{"name": "John", "age": 31}, …]&#10;or&#10;{"name": "John", "age": 31}&#10;{"name": "Jane", "age": 27}'></textarea>
+      <p id="data-check" class="status" role="status" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button type="button" id="reset-data" class="button ghost">Reset to sample data</button>
+        <span class="spacer"></span>
+        <button type="submit" value="cancel" class="button ghost">Cancel</button>
+        <button type="submit" value="set" id="set-data" class="button primary" disabled>Set</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="foot">
+    qlf is loaded from <a id="cdn-link" href="https://www.jsdelivr.com/package/npm/qlf">jsDelivr</a><span id="cdn-note"> (latest version), with unpkg as a fallback</span>. MIT license.
+  </footer>
+</body>
+</html>
