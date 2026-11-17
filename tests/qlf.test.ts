@@ -43,8 +43,8 @@ test('JQL', () => {
     const list = [
         {project: 'jql', status: 'in progress', assignee: 'user', sprint: 'sprint1', summary: 'correct'},
         {project: 'jql', status: 'in progress', assignee: 'user', sprint: 'sprint2', summary: 'correct'},
-        {project: 'jql', status: 'in progress', assignee: 'user', sprint: 'sprint3', summary: 'correct'},
-        {project: 'jql', status: 'in progress', assignee: 'user', sprint: 'sprint4', summary: 'correct'},
+        {project: 'jql', status: 'in progress', assignee: 'user', sprint: 'sprint3', summary: 'wrong'},
+        {project: 'jql', status: 'in progress', assignee: 'user', sprint: 'sprint4', summary: 'wrong'},
         {project: 'jql', status: 'done', assignee: 'user', sprint: 'sprint1', summary: 'wrong'},
         {project: 'jql', status: 'done', assignee: 'user', sprint: 'sprint2', summary: 'wrong'},
         {project: 'jql', status: 'backlog', assignee: 'user', sprint: 'sprint1', summary: 'wrong'},
@@ -67,8 +67,11 @@ test('JQL', () => {
         {project: 'another', status: 'backlog', assignee: 'user', sprint: 'sprint2', summary: 'wrong'},
     ]
     
-    const result = list.filter(fn).map(node => node.summary).every(summary => summary === 'correct')
-    expect(result).toEqual(true)
+    // compare with the full expected list: an empty result must not pass
+    const matched = list.filter(fn).map(node => node.summary)
+    const expected = list.map(node => node.summary).filter(summary => summary === 'correct')
+    expect(matched).toStrictEqual(expected)
+    expect(matched.length).toBe(2)
 })
 
 const testData = [

@@ -15,6 +15,8 @@
 - **Type Safe**: Full TypeScript support with comprehensive type definitions
 - **Zero Dependencies**: Lightweight and self-contained
 
+Try it in the [playground](https://liksu.github.io/qlf/).
+
 ## 📦 Installation
 
 ```bash
@@ -56,11 +58,14 @@ QLF uses operators to compare properties with values, check membership in lists,
 |----------|---------|-------------|
 | `=` | `name = "John"` | Equality |
 | `!=` | `status != "inactive"` | Inequality |
+| `>` `>=` `<` `<=` | `score >= 80` | Comparison |
 | `!` | `!(status = "active")` | Logical negation (works with any expression) |
+| `not (…)` | `not (status = "active")` | Same as `!(…)`, case-insensitive |
 | `like` | `name like "Jo"` | Regex match |
 | `not like` | `role not like "admin"` | Negative regex match |
 | `in` | `status in ("active", "pending")` | List inclusion |
 | `not in` | `role not in ("admin", "guest")` | List exclusion |
+| `in` value | `sprint in openSprints()` | The same for a single value without parentheses: a [custom function](#custom-functions) or a property that holds a list |
 | `is null` | `description is null` | Null check |
 | `is not null` | `email is not null` | Not null check |
 | `is empty` | `comment is empty` | Empty string check |
@@ -114,10 +119,10 @@ Configure QLF behavior with these core options. These settings control how queri
 ```typescript
 const qlf = new QLF({
   caseSensitive: false,    // Case sensitive regex matching
-  strictEquality: true,    // Use === instead of ==
-  strictFilter: false,     // Enable performance optimizations
+  strictEquality: false,   // Use === instead of == in the code of grammars
+  strictFilter: true,      // No 'with' statement, see Strict vs Sloppy Mode
   filterOnly: false,       // Return only filter function
-  nodeName: 'node'         // Variable name in generated code
+  nodeName: 'node'         // Path to the item in what the filter receives, like 'row.data'
 })
 ```
 
@@ -138,6 +143,26 @@ const qlf = new QLF({}, {
 // Use in queries
 const filterFn = qlf.transpile('assignee = currentUser() and sprint in openSprints()').filter
 ```
+
+A call of a custom function is a value, the same as a quoted string, so it can stand wherever a value or a property can. Functions take arguments: properties, values, expressions and other functions.
+
+```typescript
+const qlf = new QLF({}, {
+  functions: {
+    currentSprint: () => 'SPRINT-2',
+    getSprint: (date) => findSprintByDate(date),
+    openSprints: () => ['SPRINT-1', 'SPRINT-2']
+  }
+})
+
+'currentSprint() = getSprint(duedate)'            // a property as an argument
+'sprint in (openSprints(), "BACKLOG")'            // lists are flat: a function can return an array
+'labels has one of (openSprints())'
+'summary starts with currentSprint()'             // a value of any grammar
+'getSprint(duedate) in ("SPRINT-1", "SPRINT-2")'  // instead of a property
+```
+
+A property that does not exist in the data is passed to a function as its own name, the same as everywhere in a query: for an item without `duedate`, `getSprint` receives the string `"duedate"`.
 
 ### Working with Nested Data
 
@@ -176,6 +201,8 @@ Lexemes are the building blocks of queries - they define what patterns QLF recog
 | `value` | `[\w-]+` | Values for comparison |
 | `list` | `\([^)]+\)` | Parentheses-wrapped value lists ("a", "b", "c") |
 
+Quoted strings and calls of custom functions are extracted from a query before grammars are applied, so both are matched by `key` and `value` as a single word.
+
 **Custom Lexemes:**
 
 ```typescript
@@ -203,6 +230,7 @@ Grammars define the syntax patterns that QLF can understand and how they should 
 |-----|---------|----------|-------------|
 | Any | `key is null` | `key is not null` | Null/undefined checking |
 | Any | `key in list` | `key not in list` | Check if property value exists in list |
+| Any | `key in value` | `key not in value` | The same for a single value: a function or a property that holds a list |
 | String | `key like value` | `key not like value` | Regex pattern matching |
 | String | `key contains value` | `key not contains value` | Substring search (same as like) |
 | String | `key starts with value` | `key not starts with value` | String prefix matching |
@@ -244,7 +272,7 @@ const qlf = new QLF({}, {
 
 ### Synonyms
 
-Synonyms automatically replace operators and keywords in queries before grammar processing. They enable natural language alternatives to programming operators.
+Synonyms automatically replace operators and keywords in queries before grammar processing. They enable natural language alternatives to programming operators. A synonym is another spelling of something that grammars or JavaScript already understand; it is not a place to fix mistakes, so an incorrect operator like `>==` is a syntax error.
 
 **Standard Synonyms:**
 
@@ -253,8 +281,10 @@ Synonyms automatically replace operators and keywords in queries before grammar 
 | `AND` (case-insensitive) | `&&` | Logical AND operator |
 | `OR` (case-insensitive) | <code>&#124;&#124;</code> | Logical OR operator |
 | `~` | `contains` | Shorthand for contains |
+| `NOT (` (case-insensitive) | `!(` | Negation of a group in parentheses |
 | `!~` | `not contains` | Shorthand for not contains |
-| `=` (multiple) | `==` | Equality normalization |
+| `=`, `==`, `===` | `==` | Equality (`!=`, `>=`, `<=` and `=>` are left as is) |
+| `!==` | `!=` | Inequality |
 
 **Custom Synonyms:**
 ```typescript
@@ -277,7 +307,7 @@ const qlf = new QLF({}, {
 Guards are safety functions that protect lexeme values from runtime errors. They transform raw lexeme values into safe JavaScript code before they're inserted into the generated code.
 
 ```typescript
-import { Guards } from 'qlf/guards'
+import { QLF, Guards } from 'qlf'
 
 const qlf = new QLF({}, {
   grammars: {
@@ -315,15 +345,18 @@ const customGuards = {
 
 ### Strict vs Sloppy Mode
 
-Two different execution modes that balance ease of use vs performance. Sloppy mode uses JavaScript's `with` statement for simpler property access but is slower. Strict mode generates more optimized functions with caching.
+Two ways to give the query access to the properties of an item. Both are about equally fast.
 
 ```typescript
-// Sloppy mode (default) - uses 'with' statement for easy property access
+// Sloppy mode - the query runs inside a 'with' statement
 const sloppyQLF = new QLF({ strictFilter: false })
 
-// Strict mode - better performance with caching, no 'with' statement
+// Strict mode (default) - the properties are passed as arguments, no 'with' statement;
+// the function is compiled once for each set of keys and cached
 const strictQLF = new QLF({ strictFilter: true })
 ```
+
+In strict mode every key of an item becomes an argument name, so the keys must be valid JavaScript identifiers: an item with a key like `first name`, `user-id` or `class` fails. Use sloppy mode for such data.
 
 ## 🎯 Real-world Examples
 
@@ -360,13 +393,17 @@ const productQLF = new QLF({}, {
     currentSeason: () => 'winter'
   },
   grammars: {
-    'key between value and value': {
-      code: 'key >= value1 && key <= value2',
+    'key between minVal && maxVal': { // 'and' becomes && before grammars apply
+      code: 'key >= minVal && key <= maxVal',
       guards: {
-        value1: (v) => v,
-        value2: (v) => v
+        minVal: Guards.safeVariable,
+        maxVal: Guards.safeVariable
       }
     }
+  },
+  lexemes: {
+    minVal: /(?<minVal>\w+)/,
+    maxVal: /(?<maxVal>\w+)/
   }
 })
 
@@ -374,7 +411,7 @@ const productQueries = [
   'price between 100 and 500 and inStock()', // Custom range + function
   'brand in ("Apple", "Samsung") and rating >= 4.0', // List check + comparison
   'tags has "bestseller" and onSale()', // Array operation + custom function
-  'name.toLowerCase() like "iphone" and price < 1000', // JS method + comparison
+  'name like "iphone" and price < 1000', // Case-insensitive regex + comparison
   'category = currentSeason() and inventory > Math.floor(rating * 10)' // Function + calculation
 ]
 ```
@@ -399,25 +436,27 @@ const userQueries = [
 
 ## 🐛 Error Handling
 
-QLF provides comprehensive error handling for both compile-time syntax errors and runtime execution issues. Always check for errors before using the generated filter functions.
+`transpile()` throws when a query cannot become a function: incorrect quotation, more than one `order by`, an empty query, or a syntax error. A filter can throw while it runs, for example when the query calls a method of a missing value.
 
 ```typescript
+let filter
 try {
-  const result = qlf.transpile('invalid query syntax')
-  if (result.error) {
-    console.error('Query error:', result.error)
-  }
+  filter = qlf.transpile('status = = "active"').filter
 } catch (error) {
-  console.error('Transpilation failed:', error.message)
+  console.error(error.message) // Syntax error inside query: Unexpected token '=='
 }
 ```
+
+## 🔒 Security
+
+A query becomes JavaScript code that runs with `new Function`. Anything JavaScript can do, a query can do as well, so treat a query like code: do not run queries from untrusted users where that code could reach data or actions they should not have.
 
 ## 📊 Performance
 
 Choose the right mode based on your performance needs. QLF is designed to be lightweight and fast regardless of your data size.
 
-- **Sloppy Mode**: Fast compilation, uses JavaScript's `with` statement
-- **Strict Mode**: Optimized runtime with function caching based on object keys
+- **Strict Mode**: One function for each set of keys, cached, so a list of similar objects compiles once
+- **Sloppy Mode**: One function for all items, uses JavaScript's `with` statement
 - **Memory Efficient**: Minimal overhead, no heavy dependencies
 
 ## 🚧 Roadmap
@@ -448,6 +487,7 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🔗 Links
 
+- [Playground](https://liksu.github.io/qlf/): try queries on a dataset, or follow one item through every step
 - [GitHub Repository](https://github.com/Liksu/qlf)
 - [Issues](https://github.com/Liksu/qlf/issues)
 - [Changelog](https://github.com/Liksu/qlf/releases)

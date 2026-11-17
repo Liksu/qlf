@@ -56,3 +56,62 @@ test('Extract all quoted substrings', () => {
 test('Restore all quoted strings', () => {
     expect(dictionary.restore(queryAfter)).toBe(queryBefore)
 })
+test('Extract empty quoted strings', () => {
+    const dict = new QLFDictionary()
+    expect(dict.extractQuoted(`a = "" and b = 'x' or c = ''`)).toBe('a = Ϙλφ1 and b = Ϙλφ3 or c = Ϙλφ5')
+    expect(dict.get('Ϙλφ1' as qlfDictionaryKey)).toBe('""')
+    expect(dict.get('Ϙλφ1_quotation_free' as qlfDictionaryKey)).toBe('')
+    expect(dict.get('Ϙλφ3' as qlfDictionaryKey)).toBe(`'x'`)
+    expect(dict.get('Ϙλφ5' as qlfDictionaryKey)).toBe(`''`)
+})
+
+test('Restore whole keys only', () => {
+    const dict = new QLFDictionary()
+    const query = `a in ("a", "b", "c", "d", "e", "f")`
+    const extracted = dict.extractQuoted(query)
+    expect(extracted).toBe('a in (Ϙλφ1, Ϙλφ3, Ϙλφ5, Ϙλφ7, Ϙλφ9, Ϙλφ11)')
+    expect(dict.restore(extracted)).toBe(query)
+    expect(dict.restore('Ϙλφ11_quotation_free Ϙλφ1_quotation_free')).toBe('f a')
+})
+
+test('Restore values as is', () => {
+    const dict = new QLFDictionary()
+    const query = `a = "$& $1 $\`" and b = '100%'`
+    expect(dict.restore(dict.extractQuoted(query))).toBe(query)
+})
+
+test('Restore nested values', () => {
+    const dict = new QLFDictionary()
+    const inner = dict.save('"foo"', 'foo')
+    const outer = dict.save(`[${inner}].includes(a)`)
+    expect(dict.restore(`${outer} && true`)).toBe('["foo"].includes(a) && true')
+})
+
+test('Extract calls of known functions', () => {
+    const dict = new QLFDictionary()
+    const functionNames = ['getSprint', 'today', '$id']
+    const guard = (args: string) => args.toUpperCase()
+
+    expect(dict.extractCalls('a = getSprint(due, 1) and b > today() or unknown(c)', functionNames, guard))
+        .toBe('a = Ϙλφ1 and b > Ϙλφ3 or unknown(c)')
+    expect(dict.get('Ϙλφ1' as qlfDictionaryKey)).toBe('getSprint(DUE, 1)')
+    expect(dict.get('Ϙλφ1_quotation_free' as qlfDictionaryKey)).toBe('${getSprint(DUE, 1)}')
+    expect(dict.get('Ϙλφ3' as qlfDictionaryKey)).toBe('today()')
+
+    // only the whole name, and the name with special character
+    expect(dict.extractCalls('mytoday() = $id(a)', functionNames)).toBe('mytoday() = Ϙλφ5')
+    expect(dict.get('Ϙλφ5' as qlfDictionaryKey)).toBe('$id(a)')
+})
+
+test('Extract nested calls', () => {
+    const dict = new QLFDictionary()
+    const extracted = dict.extractCalls('getSprint(today())', ['getSprint', 'today'])
+    expect(extracted).toBe('Ϙλφ3')
+    expect(dict.restore(extracted)).toBe('getSprint(today())')
+})
+
+test('Nothing to extract without functions', () => {
+    const dict = new QLFDictionary()
+    expect(dict.extractCalls('a = today()', [])).toBe('a = today()')
+    expect(dict.size).toBe(0)
+})

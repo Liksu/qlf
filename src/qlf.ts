@@ -12,6 +12,9 @@ import {
 import { QLFDictionary } from './dictionary'
 import { Guards } from './guards'
 
+export { Guards, tieLexeme } from './guards'
+export * from './interfaces'
+
 export class QLF {
     public syntax: Syntax
     private readonly settings: qlfSettings
@@ -123,6 +126,17 @@ export class QLF {
         return query
     }
 
+    /**
+     * Find and protect unprocessed words: standalone or right inside brackets, like (status = Done)
+     * but not function names foo(, parts of chains like foo.bar, or arrow function params (t) =>
+     */
+    private guardWords(query: string): string {
+        return query.replace(
+            /(?<=^|[\s(])\w+(?=[\s)]|$)(?!\s*\)?\s*=>)/g,
+            word => Guards.commonGuard(word)
+        )
+    }
+
     private createSloppyFilterFunction(query: string, config: qlfTranspileSettings): qlfFilterFn {
         const safeNodeName = Guards.headlessCommonGuard(config.nodeName)
         const [headOfNodeName] = safeNodeName.split('?')
@@ -140,7 +154,6 @@ export class QLF {
             filterFunction = fn.bind(null, ...functionNames.map(name => functions[name]))
             filterFunction.toString = () => fn.toString()
         } catch (error) {
-            console.log({filterFunctionBody})
             throw Error(`${qlfErrors.Syntax}: ${error.message}`)
         }
 
@@ -151,14 +164,23 @@ export class QLF {
         const safeNodeName = Guards.headlessCommonGuard(config.nodeName)
         const [headOfNodeName] = safeNodeName.split('?')
 
-        const functionNames = Object.keys(this.syntax.functions)
-        const functions = functionNames.map(name => this.syntax.functions[name]).sort()
+        // sort names, then take functions in the same order, so each name gets its own function
+        const functionNames = Object.keys(this.syntax.functions).sort()
+        const functions = functionNames.map(name => this.syntax.functions[name])
         const cache = new Map()
+        const getNode = new Function(headOfNodeName, `return ${safeNodeName}`)
+
+        // the query will be compiled later, for each set of node's keys, so check its syntax right now
+        try {
+            new Function(`return ${query}`)
+        } catch (error) {
+            throw Error(`${qlfErrors.Syntax}: ${error.message}`)
+        }
 
         return function filterFn(context: any) {
-            const node = new Function(headOfNodeName, `return ${safeNodeName}`)(context)
+            const node = getNode(context)
             if (!node || typeof node !== 'object') return
-            const keys = Object.keys(node).sort()
+            const keys = Object.keys(node)
             const cacheKey = keys.join(',')
 
             if (!cache.has(cacheKey)) {
@@ -172,7 +194,7 @@ export class QLF {
 
             let result
             try {
-                result = cache.get(cacheKey)(...functions, node, ...keys.map(key => node[key]))
+                result = cache.get(cacheKey)(...functions, context, ...keys.map(key => node[key]))
             } catch (error) {
                 throw Error(`${qlfErrors.Runtime}: ${error.message}`)
             }
@@ -187,13 +209,16 @@ export class QLF {
         // remove extra spaces
         query = query.replace(/\s+/g, ' ')
 
+        // extract calls of functions: for grammars a call is a value, the same as a quoted string
+        query = this.dictionary.extractCalls(
+            query,
+            Object.keys(this.syntax.functions),
+            args => args.split(',').map(arg => this.guardWords(arg.trim())).join(', ')
+        )
+
         query = this.processGrammars(query)
 
-        // find and protect unprocessed words
-        query = query.replace(
-            /(^|\s)(\w+)(\s|$)/g,
-            (match, before, word, after) => before + Guards.commonGuard(word) + after
-        )
+        query = this.guardWords(query)
 
         // expand all parts that was stored into the dictionary
         query = this.dictionary.restore(query)

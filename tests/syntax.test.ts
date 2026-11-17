@@ -7,7 +7,7 @@ describe('Lexemes', () => {
     test('Correct lexeme compiler', () => {
         const lexemesCompiler = syntax['getLexemesCompiler']()
         expect(lexemesCompiler('key like value'))
-            .toBe('(?<key>[\\w.]+) like (?<value>[\\wϘλφ-]+)')
+            .toBe('(?<key>[\\wϘλφ.]+) like (?<value>[\\wϘλφ-]+)')
     })
 
 
@@ -24,7 +24,7 @@ describe('Lexemes', () => {
 
         // Check that custom synonyms were added
         expect(qlf.syntax.synonyms.has(eqRe)).toBe(true) // custom synonym exists
-        expect(qlf.syntax.synonyms.size).toBe(7) // original + custom synonyms
+        expect(qlf.syntax.synonyms.size).toBe(new Syntax().synonyms.size + 2) // original + custom synonyms
         expect(qlf['replaceSynonyms']('key equals value')).toContain('==') // custom synonym works
         expect(qlf['replaceSynonyms']('key is like value')).not.toContain('is')
         expect(qlf.syntax.synonyms.values().next().value).toBe('&&') // original synonym still exists

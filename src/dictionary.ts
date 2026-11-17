@@ -8,9 +8,12 @@ export class QLFDictionary extends Map<qlfDictionaryKey, string> {
     static prefix = 'Ϙλφ'
     static keyRe = RegExp(`${QLFDictionary.prefix}\\d+`)
     static maxDepth = 42
-    static markUnquoted = (key: qlfDictionaryKey): qlfDictionaryKey => `${key}_quotation_free`
+    static unquotedSuffix = '_quotation_free'
+    static markUnquoted = (key: qlfDictionaryKey): qlfDictionaryKey => `${key}${QLFDictionary.unquotedSuffix}`
 
     static isKeyRe = new RegExp('^' + regexpToString(QLFDictionary.keyRe, false) + '$')
+    // a whole key with its optional suffix, to never take Ϙλφ1 for a part of Ϙλφ11
+    static wholeKeyRe = new RegExp(`${regexpToString(QLFDictionary.keyRe, false)}(?:${QLFDictionary.unquotedSuffix})?`, 'g')
 
     public reset() {
         this.clear()
@@ -29,21 +32,51 @@ export class QLFDictionary extends Map<qlfDictionaryKey, string> {
 
     public extractQuoted(input: string): string {
         return input.replace(
-            /(['"])([^\1]+?)\1/g,
+            /(['"])([\s\S]*?)\1/g,
             (quoted, quoteChar, unquoted) => this.save(quoted, unquoted)
         )
     }
 
     /**
+     * Extract calls of known functions, so that for grammars a call is a single value, like a quoted string:
+     * getSprint(duedate) ==> Ϙλφ5
+     * The unquoted version of a call is its placeholder for template strings: ${getSprint(duedate)}
+     *
+     * @param {String} input
+     * @param {Array<String>} functionNames
+     * @param {Function} guardArguments - an extracted call is not processed anymore, so protect its arguments here
+     */
+    public extractCalls(
+        input: string,
+        functionNames: Array<string>,
+        guardArguments: (args: string) => string = args => args
+    ): string {
+        if (!functionNames.length) return input
+
+        const names = functionNames.map(name => name.replaceAll('$', '\\$')).join('|')
+        const callRe = RegExp(`(?<![\\w$])(${names})\\(([^()]*)\\)`, 'g')
+
+        let output = input
+        do {
+            input = output
+            output = input.replace(callRe, (call, name, args) => {
+                const code = `${name}(${guardArguments(args)})`
+                return this.save(code, '${' + code + '}')
+            })
+        } while (output !== input) // nested calls, the inner ones first
+
+        return output
+    }
+
+    /**
      * Restore all values from dictionary into the passed string
+     * The values can contain keys as well, so repeat until nothing left
      * @param {String} input
      */
     public restore(input: string): string {
         let depthCounter = QLFDictionary.maxDepth
         while (QLFDictionary.keyRe.test(input) && --depthCounter) {
-            this.forEach((value, key) => {
-                input = decodeURI(input.replace(key, encodeURI(value)))
-            })
+            input = input.replace(QLFDictionary.wholeKeyRe, key => this.get(key as qlfDictionaryKey) ?? key)
         }
         return input
     }

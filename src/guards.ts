@@ -80,7 +80,8 @@ export namespace Guards {
      * @returns {String}
      */
     export const safeArrayName: qlfGuard = (arrayExpression: string): string => {
-        const [arrayName] = splitChain(arrayExpression)
+        // dictionary key is a whole value already, like a function call
+        const arrayName = QLFDictionary.isKey(arrayExpression) ? arrayExpression : splitChain(arrayExpression)[0]
         return `(typeof ${arrayName} !== 'undefined' && ${arrayName} instanceof Array ? ${arrayName} : [null])`
     }
 

@@ -65,12 +65,14 @@ test('safeArrayName', () => {
     const safeArrayName = expects.bind(null, 'safeArrayName')
     safeArrayName('foo', `(typeof foo !== 'undefined' && foo instanceof Array ? foo : [null])`)
     safeArrayName('foo.foo[42]["baz"].bar', `(typeof foo !== 'undefined' && foo instanceof Array ? foo : [null])`)
+    safeArrayName(dictionaryKey, `(typeof ${dictionaryKey} !== 'undefined' && ${dictionaryKey} instanceof Array ? ${dictionaryKey} : [null])`)
 })
 
 test('safeList', () => {
     const safeList = expects.bind(null, 'safeList')
     safeList(`42, 'a',foo`, `42, 'a', (typeof foo === 'undefined' ? 'foo' : foo)`)
     safeList(`42, 'a',foo.bar`, `42, 'a', (typeof foo === 'undefined' ? 'foo' : foo)?.['bar']`)
+    safeList(`42, ${dictionaryKey},foo`, `42, ${dictionaryKey}, (typeof foo === 'undefined' ? 'foo' : foo)`)
 })
 
 test('tieLexeme', () => {
